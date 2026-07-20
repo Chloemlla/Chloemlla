@@ -957,19 +957,33 @@ async function main() {
   });
   const subject = buildSubject(results, startedAt);
 
+  let emailSent = false;
   if (dryRun) {
     log(`[DRY_RUN] skip email subject=${subject}`);
     log(`[DRY_RUN] html length=${html.length}`);
   } else {
     log(`sending email to ${reportTo} subject=${subject}`);
-    const sent = await sendEmail({
-      baseUrl: outemailBase,
-      apiKey: outemailKey,
-      to: reportTo,
-      subject,
-      content: html,
-    });
-    log(`email sent messageId=${sent.messageId || "ok"}`);
+    try {
+      const sent = await sendEmail({
+        baseUrl: outemailBase,
+        apiKey: outemailKey,
+        to: reportTo,
+        subject,
+        content: html,
+      });
+      emailSent = true;
+      log(`email sent messageId=${sent.messageId || "ok"}`);
+    } catch (err) {
+      // Outemail auth/API failures must not fail the Action — fork scan already
+      // succeeded. Match "keep Action green after report" (missing-parent soft errors).
+      logError(
+        "email send failed:",
+        redact(err?.stack || err?.message || String(err)),
+      );
+      logError(
+        "fork-sync completed but email failed (job still green; check OUTEMAIL credentials/API)",
+      );
+    }
   }
 
   // Per-fork errors are included in the email report. Do not fail the Action
@@ -992,6 +1006,7 @@ async function main() {
     upToDate: countStatus(results, "up_to_date"),
     errors: hardErrors,
     dryRun,
+    emailSent,
     subject,
   };
   log(`SUMMARY ${JSON.stringify(summary)}`);
