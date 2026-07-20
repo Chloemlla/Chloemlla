@@ -1,171 +1,71 @@
-# Fork Sync Bot
+<div align="center">
 
-Daily GitHub Action that scans **your account’s fork repositories**, keeps an `upstream` branch pointer in sync with the parent default tip, opens (or reuses) a sync PR when the parent is ahead, **auto-merges clean PRs**, and emails an HTML summary of conflicts and results.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Chloemlla/Chloemlla/output/github-snake.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Chloemlla/Chloemlla/output/github-snake.svg" />
+  <img alt="github-snake" src="https://raw.githubusercontent.com/Chloemlla/Chloemlla/output/github-snake.svg" />
+</picture>
 
-## What it does
+擅长使用 **Kotlin** 与 **TypeScript** 进行开发，同时熟悉 **Go**、**Java**、**JavaScript** 和 **Python**，习惯在不同语言之间按需切换。
 
-For each non-archived fork owned by the authenticated user:
+</div>
 
-1. **Ensure `upstream` branch** — create if missing; every run force-points it at the parent’s default-branch tip.
-2. **Compare** parent default → fork default.
-3. If the parent has new commits: **find or create** a PR  
-   `head: {parent_owner}:{parent_default}` → `base: {fork_default}`.
-4. Poll `mergeable`:
-   - **true** → merge with method `merge` (merge commit).
-   - **false** → leave the PR open and highlight it in the email.
-   - still unknown after retries → treat as open/conflict-class in the report.
-5. **Always send** an HTML email report (unless dry-run).
+## 🔧 Tech Stack
 
-PR identity (idempotent):
+![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
-- Title: `chore(sync): merge upstream`
-- Body marker: `<!-- fork-sync-bot -->`
+![Gradle](https://img.shields.io/badge/Gradle-02303A?style=for-the-badge&logo=gradle&logoColor=white)
+![Go Modules](https://img.shields.io/badge/Go_Modules-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![npm](https://img.shields.io/badge/npm-CB3837?style=for-the-badge&logo=npm&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Docusaurus](https://img.shields.io/badge/Docusaurus-3ECC5F?style=for-the-badge&logo=docusaurus&logoColor=white)
+![Task](https://img.shields.io/badge/Task-29BEB0?style=for-the-badge&logo=task&logoColor=white)
+![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
 
-## Schedule
+## 📊 Language Stats
 
-| Trigger | When |
+<div align="center">
+
+![](https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=Chloemlla&theme=tokyonight)
+![](https://github-profile-summary-cards.vercel.app/api/cards/most-commit-language?username=Chloemlla&theme=tokyonight)
+
+</div>
+
+---
+
+## 🤖 Fork Sync Bot（本仓库自动化）
+
+每日扫描账号下 **fork**，维护 `upstream` 分支，在上游有更新时开 PR；无冲突自动 merge，有冲突保留 PR，并通过 Happy-TTS 对外邮件发送 HTML 报告。
+
+| 触发 | 说明 |
 | --- | --- |
-| Cron | `0 6 * * *` (daily **06:00 UTC**) |
-| Manual | **Actions → Fork Sync → Run workflow** (`workflow_dispatch`) |
+| Cron | `0 6 * * *`（每天 **06:00 UTC**） |
+| 手动 | **Actions → Fork Sync → Run workflow** |
 
-Manual runs can set **Dry run** to `true` (no branch writes, no PR create/merge, no email).
+### Secrets
 
-## Required secrets
-
-Configure under **Settings → Secrets and variables → Actions**:
-
-| Secret | Required | Description |
-| --- | --- | --- |
-| `USER_PAT` | **Yes** | GitHub personal access token (wired into the job as `GH_PAT`). Needed for listing owned forks and opening cross-repo PRs. |
-| `OUTEMAIL_API_KEY` | **Yes** | Happy-TTS **对外邮件外部 API Key**（EnvManager「对外邮件 API 鉴权」/`OUTEMAIL_API_KEY`），**不是** Resend 的 `re_…` 主密钥。也可用旧 `code`，但本脚本只用 Bearer API Key。 |
-
-### `USER_PAT` permissions
-
-**Classic PAT**
-
-- Scope: `repo` (full private access if you have private forks)
-
-**Fine-grained PAT**
-
-- Resource owner: your user
-- Repository access: all repositories you own (or every fork you want synced)
-- Permissions:
-  - **Contents**: Read and write (create/update `upstream` ref)
-  - **Pull requests**: Read and write (create / merge)
-  - **Metadata**: Read
-- Must be able to **read** public (or accessible) parent repositories
-
-> Do **not** rely on the default workflow `GITHUB_TOKEN` alone — it cannot reliably list all user forks or open cross-repo sync PRs.
-
-## Optional variables
-
-Repository **Variables** (or override in the workflow env):
-
-| Name | Default | Description |
-| --- | --- | --- |
-| `OUTEMAIL_BASE_URL` | `https://tts.chloemlla.com` | Outemail API origin (no trailing path) |
-| `REPORT_TO` | `happyclovo@gmail.com` | Report recipient |
-| `MERGE_METHOD` | `merge` | `merge` \| `squash` \| `rebase` |
-
-Environment flags (local or workflow):
-
-| Name | Default | Description |
-| --- | --- | --- |
-| `DRY_RUN` | `0` | Set to `1` to scan only: no ref writes, no PR create/merge, no email |
-| `GH_PAT` / `USER_PAT` | — | Required (workflow maps `USER_PAT` → `GH_PAT`; script also accepts `GITHUB_TOKEN`) |
-| `OUTEMAIL_API_KEY` | — | Required unless `DRY_RUN=1` |
-
-## Email report
-
-- API: `POST {OUTEMAIL_BASE_URL}/api/outemail/send`
-- HTML body (~600px table layout, inline styles)
-- Sent **on every run** (including all up-to-date), so silent schedule failures are visible
-
-### Stats / sections
-
-| Stat | Meaning |
+| Secret | 说明 |
 | --- | --- |
-| Scanned | Forks processed |
-| Merged | Auto-merged sync PRs |
-| Conflicts | Unmergeable + mergeable-unknown open PRs |
-| Upstream+ | `upstream` branch created this run |
-| Up to date | No parent updates needing a PR |
-| Errors | Hard failures / skipped (no parent, etc.) |
+| `USER_PAT` | GitHub PAT（workflow 注入为 `GH_PAT`），需能列 fork / 推分支 / 建并合并 PR |
+| `OUTEMAIL_API_KEY` | Happy-TTS **对外邮件外部 API Key**（非 Resend 主密钥） |
 
-Conflict and open-PR rows are listed first (red accent) with repository and PR links. Logs and email content never include tokens.
+可选 Variables：`OUTEMAIL_BASE_URL`（默认 `https://tts.chloemlla.com`）、`REPORT_TO`（默认 `happyclovo@gmail.com`）、`MERGE_METHOD`（默认 `merge`）。
 
-### Per-fork status values
-
-| Status | Meaning |
-| --- | --- |
-| `upstream_created` | Created `upstream` this run |
-| `upstream_refreshed` | Force-updated `upstream` tip |
-| `up_to_date` | Parent has nothing new for the fork default |
-| `merged` | Sync PR auto-merged |
-| `conflict` | PR open and not mergeable |
-| `pr_open` | PR open; mergeable still unknown (or dry-run would-create) |
-| `skipped` | No parent / create PR 422 / similar |
-| `error` | Unexpected API or processing error |
-
-## Local usage
+本地：
 
 ```bash
-npm install
-```
-
-**Dry run** (recommended first):
-
-```bash
-# cross-platform via flag
-npm run fork-sync:dry
-
-# or via env (Unix)
-DRY_RUN=1 GH_PAT=ghp_xxx node scripts/fork-sync.mjs
-
-# PowerShell
-$env:DRY_RUN="1"; $env:GH_PAT="ghp_xxx"; node scripts/fork-sync.mjs
-```
-
-**Live run** (writes refs / PRs and sends email):
-
-```bash
-# Unix
-GH_PAT=ghp_xxx OUTEMAIL_API_KEY=xxx node scripts/fork-sync.mjs
-
-# PowerShell
-$env:GH_PAT="ghp_xxx"
-$env:OUTEMAIL_API_KEY="xxx"
-# optional: $env:REPORT_TO="you@example.com"
+npm ci
+# dry-run
+set DRY_RUN=1   # PowerShell: $env:DRY_RUN=1
 node scripts/fork-sync.mjs
+# 或
+npm run fork-sync:dry
 ```
 
-## Manual dispatch (GitHub UI)
-
-1. Add secrets `GH_PAT` and `OUTEMAIL_API_KEY`.
-2. Open **Actions → Fork Sync**.
-3. **Run workflow** (optionally choose Dry run = `true`).
-4. Check the job log for `SUMMARY {…}` and your inbox for the HTML report.
-
-## Project layout
-
-```text
-package.json
-package-lock.json
-scripts/fork-sync.mjs          # single entry
-.github/workflows/fork-sync.yml
-README.md
-.gitignore
-```
-
-## Security notes
-
-- Secrets only via environment / Actions secrets — never hard-coded.
-- Error messages are redacted (PAT patterns + env value scrubbing).
-- Email HTML contains only repo/PR URLs and status text — no keys.
-
-## Out of scope
-
-- Automatic conflict resolution
-- Org / non-fork scanning
-- Multi-recipient mail or attachments
-- Using only default `GITHUB_TOKEN`
+详见 workflow：`.github/workflows/fork-sync.yml`，脚本：`scripts/fork-sync.mjs`。

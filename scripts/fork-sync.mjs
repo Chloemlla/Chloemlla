@@ -37,6 +37,19 @@ const MERGEABLE_DELAY_MS = 2000;
  * @property {string} [message]
  * @property {boolean} [upstreamCreated]
  * @property {boolean} [upstreamRefreshed]
+ * @property {string} [compareStatus]
+ * @property {number} [parentAhead]
+ * @property {string} [upstreamSha]
+ */
+
+/**
+ * @typedef {object} WorkflowRunSummary
+ * @property {number} id
+ * @property {string|null} conclusion
+ * @property {string} status
+ * @property {string} html_url
+ * @property {string} created_at
+ * @property {string} display_title
  */
 
 function env(name, fallback = undefined) {
@@ -383,6 +396,7 @@ async function processFork(octokit, repo, opts) {
     );
     result.upstreamCreated = upstream.created;
     result.upstreamRefreshed = upstream.refreshed;
+    result.upstreamSha = upstream.sha;
     if (upstream.created) result.statuses.push("upstream_created");
     else if (upstream.refreshed) result.statuses.push("upstream_refreshed");
 
@@ -396,6 +410,8 @@ async function processFork(octokit, repo, opts) {
       parentOwner,
       parentDefault,
     );
+    result.compareStatus = cmp.status;
+    result.parentAhead = cmp.aheadBy;
 
     // Compare basehead = forkDefault...parent:parentDefault
     // GitHub status is relative to head (parent): "ahead" = parent has commits fork lacks.
@@ -523,14 +539,82 @@ function runUrl() {
 }
 
 /**
+ * Fetch Fork Sync workflow runs from the last 24 hours (this repo).
+ * Graceful empty when GITHUB_REPOSITORY missing or API fails.
+ * @param {Octokit} octokit
+ * @returns {Promise<WorkflowRunSummary[]>}
+ */
+async function fetchRecentWorkflowRuns(octokit) {
+  const repoFull = env("GITHUB_REPOSITORY");
+  if (!repoFull || !repoFull.includes("/")) {
+    return [];
+  }
+  const [owner, repo] = repoFull.split("/");
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  try {
+    /** @type {import('@octokit/openapi-types').components['schemas']['workflow-run'][]} */
+    let runs = [];
+
+    // Prefer list by workflow file name; fall back to repo-wide filter by name.
+    try {
+      const { data } = await withRetry(
+        () =>
+          octokit.rest.actions.listWorkflowRuns({
+            owner,
+            repo,
+            workflow_id: "fork-sync.yml",
+            per_page: 30,
+            created: `>=${since}`,
+          }),
+        { label: "listWorkflowRuns fork-sync.yml" },
+      );
+      runs = data.workflow_runs || [];
+    } catch (err) {
+      if (err?.status !== 404) throw err;
+      const { data } = await withRetry(
+        () =>
+          octokit.rest.actions.listWorkflowRunsForRepo({
+            owner,
+            repo,
+            per_page: 30,
+            created: `>=${since}`,
+          }),
+        { label: "listWorkflowRunsForRepo" },
+      );
+      runs = (data.workflow_runs || []).filter(
+        (w) =>
+          (w.name || "").toLowerCase() === "fork sync" ||
+          (w.path || "").endsWith("fork-sync.yml"),
+      );
+    }
+
+    return runs
+      .filter((w) => new Date(w.created_at).getTime() >= Date.now() - 24 * 60 * 60 * 1000)
+      .map((w) => ({
+        id: w.id,
+        conclusion: w.conclusion ?? null,
+        status: w.status || "unknown",
+        html_url: w.html_url,
+        created_at: w.created_at,
+        display_title: w.display_title || w.name || `run #${w.id}`,
+      }));
+  } catch (err) {
+    logError(`[warn] fetchRecentWorkflowRuns: ${redact(err?.message || String(err))}`);
+    return [];
+  }
+}
+
+/**
  * @param {object} report
  * @param {ForkResult[]} report.results
  * @param {string} report.login
  * @param {string} report.startedAt
  * @param {boolean} report.dryRun
+ * @param {WorkflowRunSummary[]} [report.recentRuns]
  */
 function buildHtmlReport(report) {
-  const { results, login, startedAt, dryRun } = report;
+  const { results, login, startedAt, dryRun, recentRuns = [] } = report;
   const scanned = results.length;
   const merged = countStatus(results, "merged");
   const conflicts = countStatus(results, "conflict");
@@ -540,68 +624,173 @@ function buildHtmlReport(report) {
   const errors = countStatus(results, "error");
   const skipped = countStatus(results, "skipped");
 
+  const upstreamRows = results.filter((r) => hasStatus(r, "upstream_created"));
   const conflictRows = results.filter((r) => hasStatus(r, "conflict") || hasStatus(r, "pr_open"));
   const mergedRows = results.filter((r) => hasStatus(r, "merged"));
-  const upstreamRows = results.filter((r) => hasStatus(r, "upstream_created"));
   const errorRows = results.filter((r) => hasStatus(r, "error") || hasStatus(r, "skipped"));
 
   const workflow = runUrl();
   const when = new Date(startedAt).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
 
+  const th = (label) =>
+    `<th style="text-align:left;padding:8px 10px;border-bottom:1px solid #d0d7de;color:#656d76;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.02em;">${label}</th>`;
+
+  const td = (html) =>
+    `<td style="padding:8px 10px;border-bottom:1px solid #eaeef2;font-size:13px;vertical-align:top;color:#1f2328;">${html}</td>`;
+
   const stat = (label, value, color) => `
-    <td style="padding:12px 16px;text-align:center;border:1px solid #d0d7de;border-radius:8px;background:#ffffff;">
-      <div style="font-size:22px;font-weight:700;color:${color};line-height:1.2;">${value}</div>
-      <div style="font-size:12px;color:#656d76;margin-top:4px;">${label}</div>
+    <td width="33%" style="padding:4px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;">
+        <tr><td style="padding:14px 10px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:${color};line-height:1.2;">${value}</div>
+          <div style="font-size:11px;color:#656d76;margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">${label}</div>
+        </td></tr>
+      </table>
     </td>`;
 
+  const badge = (text, bg, fg) =>
+    `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${bg};color:${fg};font-size:11px;font-weight:600;line-height:1.4;">${escapeHtml(text)}</span>`;
+
   const repoLink = (r) =>
-    `<a href="${escapeHtml(r.htmlUrl)}" style="color:#0969da;text-decoration:none;">${escapeHtml(r.fullName)}</a>`;
+    `<a href="${escapeHtml(r.htmlUrl)}" style="color:#0969da;text-decoration:none;font-weight:600;">${escapeHtml(r.fullName)}</a>`;
 
   const prLink = (r) =>
     r.prUrl
       ? `<a href="${escapeHtml(r.prUrl)}" style="color:#0969da;text-decoration:none;">#${r.prNumber}</a>`
       : "—";
 
-  const table = (title, accent, rows, columns) => {
-    if (!rows.length) return "";
-    const head = columns.map((c) => `<th style="text-align:left;padding:8px 10px;border-bottom:1px solid #d0d7de;color:#656d76;font-size:12px;">${c}</th>`).join("");
-    const body = rows
-      .map((r) => {
-        const cells = [
-          repoLink(r),
-          escapeHtml(r.parentFullName || "—"),
-          prLink(r),
-          escapeHtml((r.statuses || []).join(", ")),
-          escapeHtml(r.message || ""),
-        ];
-        return `<tr>${cells.map((c) => `<td style="padding:8px 10px;border-bottom:1px solid #eaeef2;font-size:13px;vertical-align:top;">${c}</td>`).join("")}</tr>`;
-      })
-      .join("");
+  const shortSha = (sha) => (sha ? escapeHtml(String(sha).slice(0, 7)) : "—");
+
+  const sectionTable = (title, accent, borderColor, bodyHtml, count) => {
+    if (!bodyHtml) return "";
     return `
-      <tr><td style="padding:20px 0 8px 0;">
-        <div style="font-size:15px;font-weight:600;color:${accent};margin-bottom:8px;">${title} (${rows.length})</div>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#fff;border:1px solid #d0d7de;border-radius:8px;">
-          <thead><tr>${head}</tr></thead>
-          <tbody>${body}</tbody>
+      <tr><td style="padding:18px 0 4px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-left:4px solid ${borderColor};background:#ffffff;">
+          <tr><td style="padding:0 0 0 12px;">
+            <div style="font-size:14px;font-weight:700;color:${accent};margin-bottom:10px;">${title} <span style="color:#656d76;font-weight:500;">(${count})</span></div>
+            ${bodyHtml}
+          </td></tr>
         </table>
       </td></tr>`;
   };
 
-  const cols = ["Repository", "Parent", "PR", "Status", "Note"];
+  // Section A — Upstream created (full detail)
+  let upstreamHtml = "";
+  if (upstreamRows.length) {
+    const head = ["Repository", "Parent", "Fork / Parent default", "Statuses", "SHA", "Note", "PR"]
+      .map(th)
+      .join("");
+    const body = upstreamRows
+      .map((r) => {
+        const branches = `${escapeHtml(r.defaultBranch || "—")} / ${escapeHtml(r.parentDefaultBranch || "—")}`;
+        const cells = [
+          repoLink(r),
+          escapeHtml(r.parentFullName || "—"),
+          branches,
+          escapeHtml((r.statuses || []).join(", ")),
+          `<code style="font-size:12px;background:#f6f8fa;padding:1px 4px;border-radius:4px;">${shortSha(r.upstreamSha)}</code>`,
+          escapeHtml(r.message || ""),
+          prLink(r),
+        ];
+        return `<tr>${cells.map(td).join("")}</tr>`;
+      })
+      .join("");
+    upstreamHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #d0d7de;border-radius:8px;overflow:hidden;">
+      <thead><tr style="background:#f6f8fa;">${head}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+  }
+
+  // Sections B/C/D — standard detail tables
+  const detailTable = (rows) => {
+    if (!rows.length) return "";
+    const head = ["Repository", "Parent", "Branches", "Compare", "PR", "Statuses", "Note"].map(th).join("");
+    const body = rows
+      .map((r) => {
+        const branches = `${escapeHtml(r.defaultBranch || "—")} ← ${escapeHtml(r.parentDefaultBranch || "—")}`;
+        const cmp =
+          r.compareStatus != null
+            ? `${escapeHtml(r.compareStatus)}${typeof r.parentAhead === "number" ? ` (+${r.parentAhead})` : ""}`
+            : "—";
+        const cells = [
+          repoLink(r),
+          escapeHtml(r.parentFullName || "—"),
+          branches,
+          escapeHtml(cmp),
+          prLink(r),
+          escapeHtml((r.statuses || []).join(", ")),
+          escapeHtml(r.message || ""),
+        ];
+        return `<tr>${cells.map(td).join("")}</tr>`;
+      })
+      .join("");
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #d0d7de;border-radius:8px;overflow:hidden;">
+      <thead><tr style="background:#f6f8fa;">${head}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+  };
+
+  // Section E — last 24h workflow runs
+  let runsHtml = "";
+  if (recentRuns.length) {
+    const head = ["When (UTC)", "Title", "Status", "Conclusion", "Link"].map(th).join("");
+    const body = recentRuns
+      .map((w) => {
+        const whenRun = new Date(w.created_at).toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z");
+        const statusBadge =
+          w.conclusion === "success"
+            ? badge(w.conclusion, "#dafbe1", "#1a7f37")
+            : w.conclusion === "failure"
+              ? badge(w.conclusion, "#ffebe9", "#cf222e")
+              : w.conclusion
+                ? badge(w.conclusion, "#fff8c5", "#9a6700")
+                : badge(w.status, "#ddf4ff", "#0969da");
+        const cells = [
+          escapeHtml(whenRun),
+          escapeHtml(w.display_title),
+          escapeHtml(w.status),
+          statusBadge,
+          `<a href="${escapeHtml(w.html_url)}" style="color:#0969da;text-decoration:none;">#${w.id}</a>`,
+        ];
+        return `<tr>${cells.map(td).join("")}</tr>`;
+      })
+      .join("");
+    runsHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #d0d7de;border-radius:8px;overflow:hidden;">
+      <thead><tr style="background:#f6f8fa;">${head}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+  } else {
+    runsHtml = `<div style="font-size:13px;color:#656d76;padding:8px 0;">No workflow runs found in the last 24 hours (or unavailable outside Actions).</div>`;
+  }
+
+  const hasDetail =
+    upstreamRows.length || conflictRows.length || mergedRows.length || errorRows.length;
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>Fork Sync Report</title></head>
-<body style="margin:0;padding:0;background:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1f2328;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fa;padding:24px 12px;">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="color-scheme" content="light"/>
+  <title>Fork Sync Report</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1f2328;-webkit-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fa;padding:28px 12px;">
     <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-        <tr><td style="padding:16px 20px;background:#24292f;border-radius:8px 8px 0 0;">
-          <div style="font-size:18px;font-weight:700;color:#ffffff;">Fork Sync Report${dryRun ? " (DRY RUN)" : ""}</div>
-          <div style="font-size:12px;color:#8b949e;margin-top:6px;">${escapeHtml(when)} · @${escapeHtml(login)}</div>
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-collapse:collapse;">
+        <!-- Header -->
+        <tr><td style="padding:20px 24px;background:#24292f;border-radius:10px 10px 0 0;">
+          <div style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">Fork Sync Report${dryRun ? " · DRY RUN" : ""}</div>
+          <div style="font-size:12px;color:#8b949e;margin-top:8px;line-height:1.5;">
+            ${escapeHtml(when)}
+            <span style="color:#484f58;"> · </span>@${escapeHtml(login)}
+            <span style="color:#484f58;"> · </span>${scanned} fork${scanned === 1 ? "" : "s"} scanned
+          </div>
         </td></tr>
-        <tr><td style="background:#ffffff;padding:16px 20px;border-left:1px solid #d0d7de;border-right:1px solid #d0d7de;">
-          <table role="presentation" width="100%" cellpadding="4" cellspacing="6" style="border-collapse:separate;">
+
+        <!-- Stats -->
+        <tr><td style="background:#ffffff;padding:20px 20px 8px 20px;border-left:1px solid #d0d7de;border-right:1px solid #d0d7de;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
             <tr>
               ${stat("Scanned", scanned, "#1f2328")}
               ${stat("Merged", merged, "#1a7f37")}
@@ -610,25 +799,28 @@ function buildHtmlReport(report) {
             <tr>
               ${stat("Upstream+", upstreamCreated, "#0969da")}
               ${stat("Up to date", upToDate, "#656d76")}
-              ${stat("Errors", errors + skipped, "#bf8700")}
+              ${stat("Errors / Skipped", errors + skipped, "#bf8700")}
             </tr>
           </table>
         </td></tr>
-        <tr><td style="background:#ffffff;padding:0 20px 20px 20px;border:1px solid #d0d7de;border-top:0;border-radius:0 0 8px 8px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${table("⚠ Conflicts / open PRs", "#cf222e", conflictRows, cols)}
-            ${table("✓ Auto-merged", "#1a7f37", mergedRows, cols)}
-            ${table("＋ Upstream branch created", "#0969da", upstreamRows, cols)}
-            ${table("Errors / skipped", "#bf8700", errorRows, cols)}
+
+        <!-- Sections -->
+        <tr><td style="background:#ffffff;padding:4px 20px 24px 20px;border:1px solid #d0d7de;border-top:0;border-radius:0 0 10px 10px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            ${sectionTable("A · Upstream created", "#0969da", "#0969da", upstreamHtml, upstreamRows.length)}
+            ${sectionTable("B · Conflicts / PR open", "#cf222e", "#cf222e", detailTable(conflictRows), conflictRows.length)}
+            ${sectionTable("C · Merged", "#1a7f37", "#1a7f37", detailTable(mergedRows), mergedRows.length)}
+            ${sectionTable("D · Errors / skipped", "#bf8700", "#bf8700", detailTable(errorRows), errorRows.length)}
+            ${sectionTable("E · Last 24h workflow runs", "#57606a", "#d0d7de", runsHtml, recentRuns.length)}
             ${
-              !conflictRows.length && !mergedRows.length && !upstreamRows.length && !errorRows.length
-                ? `<tr><td style="padding:16px 0;font-size:14px;color:#656d76;">All ${scanned} fork(s) are up to date. No action needed.</td></tr>`
+              !hasDetail
+                ? `<tr><td style="padding:20px 0 8px 0;font-size:14px;color:#656d76;line-height:1.5;">All ${scanned} fork(s) are up to date. No action needed.</td></tr>`
                 : ""
             }
           </table>
-          <div style="margin-top:16px;font-size:11px;color:#8b949e;border-top:1px solid #eaeef2;padding-top:12px;">
+          <div style="margin-top:20px;font-size:11px;color:#8b949e;border-top:1px solid #eaeef2;padding-top:14px;line-height:1.5;">
             Generated by chloemlla fork-sync.
-            ${workflow ? ` · <a href="${escapeHtml(workflow)}" style="color:#0969da;">Workflow run</a>` : ""}
+            ${workflow ? ` · <a href="${escapeHtml(workflow)}" style="color:#0969da;text-decoration:none;">Current workflow run</a>` : ""}
           </div>
         </td></tr>
       </table>
