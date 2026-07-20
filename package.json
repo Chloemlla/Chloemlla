@@ -1,0 +1,17 @@
+{
+  "name": "chloemlla-fork-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scan account forks, ensure upstream branch, open/merge sync PRs, email HTML report",
+  "type": "module",
+  "scripts": {
+    "fork-sync": "node scripts/fork-sync.mjs",
+    "fork-sync:dry": "node scripts/fork-sync.mjs --dry-run"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.1.1"
+  }
+}
