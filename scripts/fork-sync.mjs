@@ -356,7 +356,17 @@ async function processFork(octokit, repo, opts) {
     const parentRepoName = parent.name;
     result.parentFullName = parent.full_name;
 
-    const parentFull = await getFullRepo(octokit, parentOwner, parentRepoName);
+    let parentFull;
+    try {
+      parentFull = await getFullRepo(octokit, parentOwner, parentRepoName);
+    } catch (err) {
+      if (err?.status === 404) {
+        result.statuses.push("skipped");
+        result.message = `Parent not found or inaccessible: ${parent.full_name}`;
+        return result;
+      }
+      throw err;
+    }
     const parentDefault = parentFull.default_branch;
     const forkDefault = full.default_branch || repo.default_branch;
     result.defaultBranch = forkDefault;
@@ -736,11 +746,11 @@ async function main() {
     log(`email sent messageId=${sent.messageId || "ok"}`);
   }
 
-  // Exit non-zero if any hard errors (not conflicts)
+  // Per-fork errors are included in the email report. Do not fail the Action
+  // solely because some parents are gone — only fatal main() failures exit 1.
   const hardErrors = countStatus(results, "error");
   if (hardErrors > 0) {
-    logError(`completed with ${hardErrors} error(s)`);
-    process.exitCode = 1;
+    logError(`completed with ${hardErrors} per-fork error(s) (reported in email; job still green)`);
   } else {
     log("completed successfully");
   }

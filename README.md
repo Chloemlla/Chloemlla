@@ -37,7 +37,7 @@ Configure under **Settings → Secrets and variables → Actions**:
 | Secret | Required | Description |
 | --- | --- | --- |
 | `USER_PAT` | **Yes** | GitHub personal access token (wired into the job as `GH_PAT`). Needed for listing owned forks and opening cross-repo PRs. |
-| `OUTEMAIL_API_KEY` | **Yes** | Happy-TTS outemail API key (`Authorization: Bearer …`). |
+| `OUTEMAIL_API_KEY` | **Yes** | Happy-TTS **对外邮件外部 API Key**（EnvManager「对外邮件 API 鉴权」/`OUTEMAIL_API_KEY`），**不是** Resend 的 `re_…` 主密钥。也可用旧 `code`，但本脚本只用 Bearer API Key。 |
 
 ### `USER_PAT` permissions
 
