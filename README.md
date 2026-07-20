@@ -46,16 +46,23 @@
 | 触发 | 说明 |
 | --- | --- |
 | Cron | `0 6 * * *`（每天 **06:00 UTC**） |
-| 手动 | **Actions → Fork Sync → Run workflow** |
+| 手动 | **Actions → Fork Sync → Run workflow**（可勾选 dry-run） |
 
 ### Secrets
 
 | Secret | 说明 |
 | --- | --- |
-| `USER_PAT` | GitHub PAT（workflow 注入为 `GH_PAT`），需能列 fork / 推分支 / 建并合并 PR |
-| `OUTEMAIL_API_KEY` | Happy-TTS **对外邮件外部 API Key**（非 Resend 主密钥） |
+| `USER_PAT` | GitHub PAT。Workflow 映射：`GH_PAT: ${{ secrets.USER_PAT }}`。需能列 fork、读写 Contents（`upstream` 分支）、读写 Pull requests，以及读 Actions 工作流 runs（邮件「最近 24h」区块）。 |
+| `OUTEMAIL_API_KEY` | Happy-TTS **对外邮件外部 API Key**（EnvManager「对外邮件 API 鉴权」），**不是** Resend `re_…` 主密钥；脚本仅用 `Authorization: Bearer <key>`。 |
 
 可选 Variables：`OUTEMAIL_BASE_URL`（默认 `https://tts.chloemlla.com`）、`REPORT_TO`（默认 `happyclovo@gmail.com`）、`MERGE_METHOD`（默认 `merge`）。
+
+### 邮件报告
+
+- 每次运行都会发 HTML 汇总（含全部 up-to-date）
+- 统计：Scanned / Merged / Conflicts / Upstream+ / Up-to-date / Errors·Skipped
+- 分区：**A** Upstream created（完整明细）→ **B** Conflicts/pr_open → **C** Merged → **D** Errors/skipped → **E Last 24h workflow runs**（本仓库 `fork-sync.yml` / “Fork Sync” 最近 24 小时 runs）
+- 日志与邮件正文不含任何密钥
 
 本地：
 
@@ -63,6 +70,7 @@
 npm ci
 # dry-run
 set DRY_RUN=1   # PowerShell: $env:DRY_RUN=1
+# 也可用 USER_PAT 代替 GH_PAT
 node scripts/fork-sync.mjs
 # 或
 npm run fork-sync:dry

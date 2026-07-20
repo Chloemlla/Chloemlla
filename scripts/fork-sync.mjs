@@ -862,14 +862,44 @@ async function sendEmail({ baseUrl, apiKey, to, subject, content }) {
     }),
   });
   const text = await res.text();
+  const bodySnippet = text.length > 1500 ? `${text.slice(0, 1500)}…` : text;
+
   let parsed;
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error(`Outemail non-JSON response HTTP ${res.status}: ${text.slice(0, 200)}`);
+    const msg = redact(
+      `Outemail failed HTTP ${res.status}: non-JSON response | body=${bodySnippet}`,
+    );
+    logError(msg);
+    throw new Error(msg);
   }
-  if (!res.ok || parsed.success !== true) {
-    throw new Error(redact(parsed.error || `Outemail failed HTTP ${res.status}`));
+
+  // Accept only JSON objects with success === true and HTTP OK.
+  // Avoids throwing on parsed null/primitive before building a rich message.
+  if (!res.ok || parsed == null || typeof parsed !== "object" || parsed.success !== true) {
+    // Example: Outemail failed HTTP 401: unauthorized | success=false | body={...}
+    let errLabel = "request failed";
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      parsed.error != null &&
+      parsed.error !== ""
+    ) {
+      errLabel =
+        typeof parsed.error === "string"
+          ? parsed.error
+          : JSON.stringify(parsed.error);
+    }
+    const successPart =
+      parsed && typeof parsed === "object" && "success" in parsed
+        ? ` | success=${JSON.stringify(parsed.success)}`
+        : "";
+    const rich = redact(
+      `Outemail failed HTTP ${res.status}: ${errLabel}${successPart} | body=${bodySnippet}`,
+    );
+    logError(rich);
+    throw new Error(rich);
   }
   return parsed;
 }
@@ -915,11 +945,15 @@ async function main() {
     log(`  statuses=${r.statuses.join(",")} ${redact(r.message || "")} ${r.prUrl || ""}`);
   }
 
+  const recentRuns = await fetchRecentWorkflowRuns(octokit);
+  log(`recent workflow runs (24h): ${recentRuns.length}`);
+
   const html = buildHtmlReport({
     results,
     login: me.login,
     startedAt,
     dryRun,
+    recentRuns,
   });
   const subject = buildSubject(results, startedAt);
 
