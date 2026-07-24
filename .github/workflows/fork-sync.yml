@@ -49,5 +49,6 @@ jobs:
           OUTEMAIL_BASE_URL: ${{ vars.OUTEMAIL_BASE_URL || 'https://tts.chloemlla.com' }}
           REPORT_TO: ${{ vars.REPORT_TO || 'happyclovo@gmail.com' }}
           MERGE_METHOD: ${{ vars.MERGE_METHOD || 'merge' }}
+          REPORT_LOCALE: ${{ vars.REPORT_LOCALE || 'zh' }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true' && '1' || '0' }}
         run: node scripts/fork-sync.mjs
