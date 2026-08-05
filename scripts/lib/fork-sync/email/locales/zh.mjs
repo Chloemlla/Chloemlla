@@ -29,7 +29,7 @@ export const zh = {
     note: "备注",
     pr: "PR",
     compare: "对比",
-    whenUtc: "时间 (UTC)",
+    whenUtc: "时间 (UTC / 上海)",
     title: "标题",
     status: "状态",
     conclusion: "结论",

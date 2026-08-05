@@ -22,7 +22,7 @@ import {
  * @param {string} report.startedAt
  * @param {boolean} report.dryRun
  * @param {object[]} [report.recentRuns]
- * @param {object} locale locale object from getLocale()
+ * @param {object} locale Chinese locale object (zh)
  * @returns {string}
  */
 export function buildHtmlReport(report, locale) {
@@ -131,10 +131,16 @@ export function buildHtmlReport(report, locale) {
       .join("");
     const body = recentRuns
       .map((w) => {
-        const whenRun = new Date(w.created_at)
+        const t = new Date(w.created_at);
+        const utc = t
           .toISOString()
           .replace("T", " ")
-          .replace(/\.\d+Z$/, "Z");
+          .replace(/\.\d+Z$/, "");
+        // Asia/Shanghai is fixed UTC+8 (no DST); keep the same YYYY-MM-DD HH:MM:SS shape as UTC.
+        const shanghai = new Date(t.getTime() + 8 * 60 * 60 * 1000)
+          .toISOString()
+          .replace("T", " ")
+          .replace(/\.\d+Z$/, "");
         const statusBadge =
           w.conclusion === "success"
             ? badge(w.conclusion, "#dafbe1", "#1a7f37")
@@ -144,7 +150,7 @@ export function buildHtmlReport(report, locale) {
                 ? badge(w.conclusion, "#fff8c5", "#9a6700")
                 : badge(w.status, "#ddf4ff", "#0969da");
         const cells = [
-          escapeHtml(whenRun),
+          `<div>${escapeHtml(utc)}Z</div><div style="color:#656d76;font-size:12px;">${escapeHtml(shanghai)} 上海</div>`,
           escapeHtml(w.display_title),
           escapeHtml(w.status),
           statusBadge,

@@ -12,7 +12,6 @@
  *   REPORT_TO           (optional, default happyclovo@gmail.com)
  *   DRY_RUN             (optional, "1" = no writes / no email)
  *   MERGE_METHOD        (optional: merge | squash | rebase, default merge)
- *   REPORT_LOCALE       (optional: zh | en, default zh)
  */
 
 import { getRuntimeConfig } from "./lib/fork-sync/config.mjs";
@@ -21,13 +20,13 @@ import { createOctokit } from "./lib/fork-sync/github/client.mjs";
 import { listForks } from "./lib/fork-sync/github/forks.mjs";
 import { fetchRecentWorkflowRuns } from "./lib/fork-sync/github/workflow-runs.mjs";
 import { processFork } from "./lib/fork-sync/process-fork.mjs";
-import { getLocale } from "./lib/fork-sync/email/locales/index.mjs";
+import { zh } from "./lib/fork-sync/email/locales/index.mjs";
 import { buildHtmlReport, buildSubject } from "./lib/fork-sync/email/report.mjs";
 import { sendEmail } from "./lib/fork-sync/email/send.mjs";
 
 async function main() {
   const cfg = getRuntimeConfig();
-  const { dryRun, ghPat, outemailKey, outemailBase, reportTo, mergeMethod, reportLocale } =
+  const { dryRun, ghPat, outemailKey, outemailBase, reportTo, mergeMethod } =
     cfg;
 
   if (!ghPat) {
@@ -47,7 +46,7 @@ async function main() {
 
   const startedAt = new Date().toISOString();
   log(
-    `fork-sync start dryRun=${dryRun} mergeMethod=${mergeMethod} reportLocale=${reportLocale}`,
+    `fork-sync start dryRun=${dryRun} mergeMethod=${mergeMethod}`,
   );
 
   const octokit = createOctokit(ghPat);
@@ -69,7 +68,7 @@ async function main() {
   const recentRuns = await fetchRecentWorkflowRuns(octokit);
   log(`recent workflow runs (24h): ${recentRuns.length}`);
 
-  const locale = getLocale(reportLocale);
+  const locale = zh;
   const html = buildHtmlReport(
     {
       results,
@@ -135,7 +134,6 @@ async function main() {
     dryRun,
     emailSent,
     subject,
-    reportLocale,
   };
   log(`SUMMARY ${JSON.stringify(summary)}`);
 }

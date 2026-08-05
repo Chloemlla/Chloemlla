@@ -8,7 +8,6 @@
  *   REPORT_TO           (optional, default happyclovo@gmail.com)
  *   DRY_RUN             (optional, "1" = no writes / no email)
  *   MERGE_METHOD        (optional: merge | squash | rebase, default merge)
- *   REPORT_LOCALE       (optional: zh | en, default zh; zh/zh-CN/cn → zh, en/en-US → en)
  */
 
 export const PR_TITLE = "chore(sync): merge upstream";
@@ -58,19 +57,6 @@ export function isDryRun() {
 }
 
 /**
- * Normalize REPORT_LOCALE to 'zh' | 'en'.
- * zh / zh-CN / cn → zh; en / en-US → en; unknown → zh
- * @param {string | undefined} raw
- * @returns {'zh' | 'en'}
- */
-function normalizeReportLocale(raw) {
-  const v = String(raw ?? "zh").trim().toLowerCase();
-  if (v === "en" || v === "en-us") return "en";
-  if (v === "zh" || v === "zh-cn" || v === "cn") return "zh";
-  return "zh";
-}
-
-/**
  * @returns {{
  *   dryRun: boolean,
  *   ghPat: string | undefined,
@@ -78,7 +64,6 @@ function normalizeReportLocale(raw) {
  *   outemailBase: string,
  *   reportTo: string,
  *   mergeMethod: string,
- *   reportLocale: 'zh' | 'en',
  * }}
  */
 export function getRuntimeConfig() {
@@ -89,6 +74,5 @@ export function getRuntimeConfig() {
     outemailBase: env("OUTEMAIL_BASE_URL", "https://tts.chloemlla.com"),
     reportTo: env("REPORT_TO", "happyclovo@gmail.com"),
     mergeMethod: env("MERGE_METHOD", "merge"),
-    reportLocale: normalizeReportLocale(env("REPORT_LOCALE", "zh")),
   };
 }

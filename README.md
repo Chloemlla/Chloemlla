@@ -43,7 +43,7 @@
 
 每日扫描账号下 **fork**，维护 `upstream` 分支，在上游有更新时开 PR；无冲突自动 merge，有冲突保留 PR，并通过 Happy-TTS 对外邮件发送 HTML 报告。
 
-入口脚本：`scripts/fork-sync.mjs`（薄编排层）。实现模块在 `scripts/lib/fork-sync/`（GitHub API、per-fork 处理、邮件 HTML / 多语言 locale、outemail 发送）。
+入口脚本：`scripts/fork-sync.mjs`（薄编排层）。实现模块在 `scripts/lib/fork-sync/`（GitHub API、per-fork 处理、邮件 HTML / 中文 locale、outemail 发送）。
 
 | 触发 | 说明 |
 | --- | --- |
@@ -64,14 +64,14 @@
 | `OUTEMAIL_BASE_URL` | `https://tts.chloemlla.com` | 对外邮件 API 根地址 |
 | `REPORT_TO` | `happyclovo@gmail.com` | 报告收件人 |
 | `MERGE_METHOD` | `merge` | PR 合并方式：`merge` / `squash` / `rebase` |
-| `REPORT_LOCALE` | `zh` | 邮件语言：`zh`（中文，默认）或 `en`（英文） |
 
 ### 邮件报告
 
-- 默认邮件语言为 **中文（zh）**；仓库 Variable 设 `REPORT_LOCALE=en` 可切换英文
+- 邮件固定为 **中文（zh）**
 - 每次运行都会发 HTML 汇总（含全部 up-to-date）
-- 统计（随 locale）：已扫描 / 已合并 / 冲突 / 新建 upstream / 已是最新 / 错误·跳过
+- 统计：已扫描 / 已合并 / 冲突 / 新建 upstream / 已是最新 / 错误·跳过
 - 分区：**A** 新建 upstream → **B** 冲突 / PR 待处理 → **C** 已合并 → **D** 错误 / 跳过 → **E** 最近 24 小时工作流（本仓库 `fork-sync.yml`）
+- 「最近 24 小时工作流」时间列同时显示 UTC 与上海（UTC+8）时间
 - 日志与邮件正文不含任何密钥
 
 本地：
@@ -81,7 +81,6 @@ npm ci
 # dry-run
 set DRY_RUN=1   # PowerShell: $env:DRY_RUN=1
 # 也可用 USER_PAT 代替 GH_PAT
-# 可选：REPORT_LOCALE=en
 node scripts/fork-sync.mjs
 # 或
 npm run fork-sync:dry
