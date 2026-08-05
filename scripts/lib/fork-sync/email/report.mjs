@@ -14,7 +14,6 @@ import {
   prLink,
   shortSha,
   dataTable,
-  shieldIcon,
 } from "./html.mjs";
 
 /**
@@ -206,7 +205,7 @@ export function buildHtmlReport(report, locale) {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;background:#ffffff;border:1px solid #e2e8f0;border-radius:34px;box-shadow:0 28px 110px rgba(15,23,42,0.10);">
             <tr><td style="padding:28px;">
 
-              <span style="display:inline-block;padding:4px 12px;border-radius:999px;border:1px solid #e2e8f0;background:#f1f5f9;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.28em;color:#64748b;">${shieldIcon("#64748b", 10)}&nbsp;FORK SYNC BOT</span>
+              <span style="display:inline-block;padding:4px 12px;border-radius:999px;border:1px solid #e2e8f0;background:#f1f5f9;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.28em;color:#64748b;">FORK SYNC BOT</span>
 
               <div style="margin-top:18px;font-size:30px;font-weight:600;color:#0f172a;line-height:1.25;letter-spacing:-0.02em;">${titleEsc}${escapeHtml(drySuffix)}</div>
 

@@ -42,11 +42,6 @@ export function stat(label, value, color) {
                 <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.18em;color:#64748b;">${label}</div>
                 <div style="margin-top:6px;font-size:24px;font-weight:600;color:#020617;line-height:1.2;">${value}</div>
               </td>
-              <td width="40" align="right" style="vertical-align:top;">
-                <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                  <tr><td width="32" height="32" align="center" valign="middle" style="width:32px;height:32px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:18px;font-size:0;line-height:0;">${shieldIcon(color, 16)}</td></tr>
-                </table>
-              </td>
             </tr>
           </table>
         </td></tr>
@@ -119,13 +114,4 @@ export function dataTable(headHtml, bodyHtml) {
       <thead><tr style="background:#f1f5f9;">${headHtml}</tr></thead>
       <tbody>${bodyHtml}</tbody>
     </table>`;
-}
-
-/**
- * Small shield glyph (LogShare FaShieldAlt stand-in) tinted per tone.
- * @param {string} color
- * @param {number} [size]
- */
-export function shieldIcon(color, size = 16) {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><path d="M8 1.75 3 3.9v3.65c0 3.05 1.95 5.35 5 6.7 3.05-1.35 5-3.65 5-6.7V3.9L8 1.75Z" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="1.1" stroke-linejoin="round"/><path d="m5.65 8.15 1.6 1.5 3.15-3.3" stroke="${color}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
