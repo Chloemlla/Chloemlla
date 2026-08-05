@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/fork-sync-contracts.md", "reason": "Fork sync 模块的可执行契约，本任务将更新其中双语 locale 与 When 列相关约定"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "后端代码质量标准，实现与检查需要遵守"}

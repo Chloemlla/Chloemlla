@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/07-21-github-action-scan-forks-auto-merge-pr-conflict-report-email/prd.md", "reason": "Final PRD with locked decisions"}
+{"file": ".trellis/tasks/07-21-github-action-scan-forks-auto-merge-pr-conflict-report-email/research/github-fork-sync.md", "reason": "GitHub APIs, PAT, PR/merge flow"}
+{"file": ".trellis/tasks/07-21-github-action-scan-forks-auto-merge-pr-conflict-report-email/research/html-email-report.md", "reason": "HTML email structure and outemail send"}
+{"file": ".trellis/spec/guides/architecture-thinking-guide.md", "reason": "Architecture thinking for greenfield script"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns"}

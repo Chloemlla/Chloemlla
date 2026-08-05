@@ -1,7 +1,3 @@
-.agents/skills/
-.claude/
-.codex/
-.trellis/
 Install-CodexClaudeTrellis.ps1
 
 # Node

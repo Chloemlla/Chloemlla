@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/fork-sync-contracts.md", "reason": "检查实现是否与更新后的契约一致（中文唯一、When 双时区、无 REPORT_LOCALE 残留）"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "检查代码质量、错误处理、日志规范"}
