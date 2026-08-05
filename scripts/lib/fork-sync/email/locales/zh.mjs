@@ -3,7 +3,9 @@ export const zh = {
   lang: "zh-CN",
   title: "Fork 同步报告",
   dryRunSuffix: " · 演练模式",
+  dryRunBadge: "演练模式",
   scannedUnit: (n) => `${n} 个 fork 已扫描`,
+  scannedCount: (n) => `${n} 个 fork`,
   stats: {
     scanned: "已扫描",
     merged: "已合并",
