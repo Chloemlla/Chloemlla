@@ -8,6 +8,7 @@
  *   REPORT_TO           (optional, default happyclovo@gmail.com)
  *   DRY_RUN             (optional, "1" = no writes / no email)
  *   MERGE_METHOD        (optional: merge | squash | rebase, default merge)
+ *   JANUS_WEBHOOK_SECRET (optional) webhook secret for Janus report endpoint
  */
 
 export const PR_TITLE = "chore(sync): merge upstream";
@@ -64,6 +65,7 @@ export function isDryRun() {
  *   outemailBase: string,
  *   reportTo: string,
  *   mergeMethod: string,
+ *   janusWebhookSecret: string | undefined,
  * }}
  */
 export function getRuntimeConfig() {
@@ -74,5 +76,6 @@ export function getRuntimeConfig() {
     outemailBase: env("OUTEMAIL_BASE_URL", "https://tts.chloemlla.com"),
     reportTo: env("REPORT_TO", "happyclovo@gmail.com"),
     mergeMethod: env("MERGE_METHOD", "merge"),
+    janusWebhookSecret: env("JANUS_WEBHOOK_SECRET"),
   };
 }

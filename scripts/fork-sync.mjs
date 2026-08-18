@@ -82,6 +82,7 @@ async function main() {
   const subject = buildSubject(results, startedAt, locale);
 
   let emailSent = false;
+  let webhookSent = false;
   if (dryRun) {
     log(`[DRY_RUN] skip email subject=${subject}`);
     log(`[DRY_RUN] html length=${html.length}`);
@@ -108,6 +109,35 @@ async function main() {
         "fork-sync completed but email failed (job still green; check OUTEMAIL credentials/API)",
       );
     }
+
+    // POST HTML report to Janus automation webhook
+    log("sending webhook report to Janus");
+    try {
+      const janusSecret = cfg.janusWebhookSecret;
+      if (janusSecret) {
+        const res = await fetch(
+          "https://janus.chloemlla.com/api/v1/automation/webhook",
+          {
+            method: "POST",
+            headers: {
+              "X-Janus-Webhook-Secret": janusSecret,
+              "Content-Type": "text/html",
+            },
+            body: html,
+          },
+        );
+        if (!res.ok) {
+          logError(`webhook POST failed HTTP ${res.status}`);
+        } else {
+          webhookSent = true;
+          log("webhook report sent");
+        }
+      } else {
+        logError("skip webhook: JANUS_WEBHOOK_SECRET not set");
+      }
+    } catch (err) {
+      logError("webhook POST error:", redact(err?.message || String(err)));
+    }
   }
 
   // Per-fork errors are included in the email report. Do not fail the Action
@@ -133,6 +163,7 @@ async function main() {
     errors: hardErrors,
     dryRun,
     emailSent,
+    webhookSent,
     subject,
   };
   log(`SUMMARY ${JSON.stringify(summary)}`);
