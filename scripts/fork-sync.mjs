@@ -110,33 +110,64 @@ async function main() {
       );
     }
 
-    // POST HTML report to Janus automation webhook
-    log("sending webhook report to Janus");
-    try {
-      const janusSecret = cfg.janusWebhookSecret;
-      if (janusSecret) {
-        const res = await fetch(
-          "https://janus.chloemlla.com/api/v1/automation/webhook",
-          {
-            method: "POST",
-            headers: {
-              "X-Janus-Webhook-Secret": janusSecret,
-              "Content-Type": "text/html",
+    // POST conflict JSON to Janus automation webhook
+    const conflictResults = results.filter((r) =>
+      r.statuses.includes("conflict"),
+    );
+    if (conflictResults.length > 0) {
+      log(
+        `sending ${conflictResults.length} conflict(s) to Janus webhook`,
+      );
+      try {
+        const janusSecret = cfg.janusWebhookSecret;
+        if (janusSecret) {
+          const payload = {
+            event: "fork_sync_conflict",
+            timestamp: startedAt,
+            summary: {
+              scanned: results.length,
+              conflicts: conflictResults.length,
+              merged: countStatus(results, "merged"),
+              prOpen: countStatus(results, "pr_open"),
+              upToDate: countStatus(results, "up_to_date"),
+              errors: countStatus(results, "error"),
             },
-            body: html,
-          },
-        );
-        if (!res.ok) {
-          logError(`webhook POST failed HTTP ${res.status}`);
+            conflicts: conflictResults.map((r) => ({
+              fullName: r.fullName,
+              htmlUrl: r.htmlUrl,
+              parentFullName: r.parentFullName,
+              defaultBranch: r.defaultBranch,
+              parentDefaultBranch: r.parentDefaultBranch,
+              prNumber: r.prNumber,
+              prUrl: r.prUrl,
+              message: r.message,
+            })),
+          };
+          const res = await fetch(
+            "https://janus.chloemlla.com/api/v1/automation/webhook",
+            {
+              method: "POST",
+              headers: {
+                "X-Janus-Webhook-Secret": janusSecret,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            },
+          );
+          if (!res.ok) {
+            logError(`webhook POST failed HTTP ${res.status}`);
+          } else {
+            webhookSent = true;
+            log("webhook report sent");
+          }
         } else {
-          webhookSent = true;
-          log("webhook report sent");
+          logError("skip webhook: JANUS_WEBHOOK_SECRET not set");
         }
-      } else {
-        logError("skip webhook: JANUS_WEBHOOK_SECRET not set");
+      } catch (err) {
+        logError("webhook POST error:", redact(err?.message || String(err)));
       }
-    } catch (err) {
-      logError("webhook POST error:", redact(err?.message || String(err)));
+    } else {
+      log("no conflicts, skip webhook");
     }
   }
 
