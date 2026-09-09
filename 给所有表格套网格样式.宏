@@ -1,0 +1,41 @@
+Sub 笔记整体排版()
+    Dim tbl As Table
+
+    ' ---- 1. 所有表格:套网格样式 + 根据窗口自动调整 ----
+    For Each tbl In ActiveDocument.Tables
+        On Error Resume Next
+        tbl.Style = "网格型"
+        If Err.Number <> 0 Then
+            Err.Clear
+            tbl.Style = "Table Grid"
+        End If
+        On Error GoTo 0
+        tbl.AutoFitBehavior wdAutoFitWindow
+    Next tbl
+
+    ' ---- 2. 页面:页边距自动调整为"窄"(上下左右各 1.27cm)----
+    With ActiveDocument.PageSetup
+        .TopMargin = CentimetersToPoints(1.27)
+        .BottomMargin = CentimetersToPoints(1.27)
+        .LeftMargin = CentimetersToPoints(1.27)
+        .RightMargin = CentimetersToPoints(1.27)
+        .Gutter = 0
+    End With
+
+    ' ---- 3. 全文:字体 vivo Sans SC VF,全部黑色 ----
+    ActiveDocument.Content.Select
+    With Selection.Font
+        .NameAscii = "vivo Sans SC VF"
+        .NameFarEast = "vivo Sans SC VF"
+        .NameOther = "vivo Sans SC VF"
+        .Color = wdColorBlack
+    End With
+
+    ' ---- 4. 段落间距:行距=固定值16磅;同样式段落间不加距;段前段后保持默认 ----
+    With Selection.ParagraphFormat
+        .LineSpacingRule = wdLineSpaceExactly
+        .LineSpacing = 16
+    End With
+
+    MsgBox "排版完成:已处理 " & ActiveDocument.Tables.Count & " 张表格"
+End Sub
