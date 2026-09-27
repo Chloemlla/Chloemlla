@@ -61,7 +61,7 @@
 
 | Variable | 默认 | 说明 |
 | --- | --- | --- |
-| `OUTEMAIL_BASE_URL` | `https://tts.chloemlla.com` | 对外邮件 API 根地址 |
+| `OUTEMAIL_BASE_URL` | `https://chloemlla.com` | 对外邮件 API 根地址 |
 | `REPORT_TO` | `happyclovo@gmail.com` | 报告收件人 |
 | `MERGE_METHOD` | `merge` | PR 合并方式：`merge` / `squash` / `rebase` |
 

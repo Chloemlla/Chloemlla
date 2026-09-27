@@ -4,7 +4,7 @@
  * Env:
  *   GH_PAT / USER_PAT   (required) GitHub PAT with repo + PR access
  *   OUTEMAIL_API_KEY    (required unless DRY_RUN=1)
- *   OUTEMAIL_BASE_URL   (optional, default https://tts.chloemlla.com)
+ *   OUTEMAIL_BASE_URL   (optional, default https://chloemlla.com)
  *   REPORT_TO           (optional, default happyclovo@gmail.com)
  *   DRY_RUN             (optional, "1" = no writes / no email)
  *   MERGE_METHOD        (optional: merge | squash | rebase, default merge)
@@ -73,7 +73,7 @@ export function getRuntimeConfig() {
     dryRun: isDryRun(),
     ghPat: env("GH_PAT") || env("USER_PAT") || env("GITHUB_TOKEN"),
     outemailKey: env("OUTEMAIL_API_KEY"),
-    outemailBase: env("OUTEMAIL_BASE_URL", "https://tts.chloemlla.com"),
+    outemailBase: env("OUTEMAIL_BASE_URL", "https://chloemlla.com"),
     reportTo: env("REPORT_TO", "happyclovo@gmail.com"),
     mergeMethod: env("MERGE_METHOD", "merge"),
     janusWebhookSecret: env("JANUS_WEBHOOK_SECRET"),

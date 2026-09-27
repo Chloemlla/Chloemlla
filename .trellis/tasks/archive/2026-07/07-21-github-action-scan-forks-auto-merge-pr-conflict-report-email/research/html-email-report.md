@@ -2,7 +2,7 @@
 
 ## Delivery
 
-* `POST https://tts.chloemlla.com/api/outemail/send`
+* `POST https://chloemlla.com/api/outemail/send`
 * Headers: `Authorization: Bearer ${OUTEMAIL_API_KEY}`, `Content-Type: application/json`
 * Body: `{ to, subject, content, from?, displayName? }`
 * `content` = full HTML string

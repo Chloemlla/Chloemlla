@@ -516,7 +516,7 @@ GIT_TERMINAL_PROMPT=0 git push origin <branch>
 
 **关键教训（曾误判）**：扫描里出现 `undici` 不等于「base npm 上游、应用修不了」。先用 purl / 安装路径（`/app/node_modules/.pnpm/…` vs `/usr/local/lib/node_modules/npm/…`）判断归属再下结论。本例 undici 在 `/app/node_modules` 是 devDep 传递依赖，`--prod` 直接清掉。
 
-验证闭环：commit 触发仓库 `docker.yml`（`on: push: main`）→ Publish(amd64) + Deploy 全绿 → 部署后 `https://tts.chloemlla.com/health`、`/`、`/api-docs` 均 200（证明 `--prod` 运行时无回归）→ 再抓新 tag 页扫描确认 0。
+验证闭环：commit 触发仓库 `docker.yml`（`on: push: main`）→ Publish(amd64) + Deploy 全绿 → 部署后 `https://chloemlla.com/health`、`/`、`/api-docs` 均 200（证明 `--prod` 运行时无回归）→ 再抓新 tag 页扫描确认 0。
 
 ### 8. hub.docker.com 网页数据的认证姿势（补充 2 节）
 

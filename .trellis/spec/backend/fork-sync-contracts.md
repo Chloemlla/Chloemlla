@@ -25,7 +25,7 @@
   - `GH_PAT` / `USER_PAT` / `GITHUB_TOKEN` — GitHub PAT (workflow maps `USER_PAT` → `GH_PAT`).
   - `OUTEMAIL_API_KEY` — required when not dry-run.
 - Env (optional):
-  - `OUTEMAIL_BASE_URL` default `https://tts.chloemlla.com`
+  - `OUTEMAIL_BASE_URL` default `https://chloemlla.com`
   - `REPORT_TO` default `happyclovo@gmail.com`
   - `MERGE_METHOD` default `merge` (`merge` | `squash` | `rebase`)
   - `DRY_RUN=1` or `--dry-run` — no ref writes, no PR create/merge, no email

@@ -19,7 +19,7 @@
 | 幂等 PR | 标题 `chore(sync): merge upstream` + body 标记 `<!-- fork-sync-bot -->`；复用同 base 的 open PR | 推荐 |
 | Auth | Secrets：`GH_PAT`（repo）、`OUTEMAIL_API_KEY`；可选 `OUTEMAIL_BASE_URL` / `REPORT_TO` | 推荐 |
 | 收件人 | 默认 `happyclovo@gmail.com` | 用户 |
-| 邮件 API | `POST https://tts.chloemlla.com/api/outemail/send`，Bearer，HTML `content` | 用户文档 |
+| 邮件 API | `POST https://chloemlla.com/api/outemail/send`，Bearer，HTML `content` | 用户文档 |
 
 ## Requirements
 
@@ -127,7 +127,7 @@ README.md
 | --- | --- | --- |
 | `GH_PAT` | yes | Classic `repo` 或 fine-grained Contents+PR+Metadata |
 | `OUTEMAIL_API_KEY` | yes | Happy-TTS 对外邮件 Key |
-| `OUTEMAIL_BASE_URL` | no | 默认 `https://tts.chloemlla.com` |
+| `OUTEMAIL_BASE_URL` | no | 默认 `https://chloemlla.com` |
 | `REPORT_TO` | no | 默认 `happyclovo@gmail.com` |
 | `DRY_RUN` | no | `1` 时只扫描报告，不写 ref / 不建 PR / 不发信 |
 
