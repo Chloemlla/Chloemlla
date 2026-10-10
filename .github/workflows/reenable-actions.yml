@@ -1,0 +1,88 @@
+name: Re-enable Actions
+
+# GitHub stops running workflows in *forks* that reach a large scale of Actions usage and puts
+# this banner on the fork's Actions page:
+#
+#   "Workflows are not currently being run on this fork due to the scale of GitHub Actions
+#    usage. A repository maintainer can choose to re-enable these."
+#
+# While that is in effect, pushes produce zero runs and dispatch is refused with
+# "Actions has been disabled for this repository" (HTTP 422), while
+# GET /actions/permissions keeps saying enabled: true. This job sweeps every repository in the
+# account daily, re-enables what the API can (repo permission + `disabled_fork` /
+# `disabled_inactivity` workflows), and reports which repositories are still throttled
+# at the repo level — that last part cannot be cleared through the API and needs one click on
+# that repository's Actions page.
+
+on:
+  schedule:
+    # Daily 05:17 UTC (13:17 CST); :17 keeps it out of the congested top-of-hour queue
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      include_manual:
+        description: "Also re-enable workflows disabled by the owner (disabled_manually)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      dry_run:
+        description: "Dry run (report only, no writes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/reenable-actions.mjs"
+      - ".github/workflows/reenable-actions.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reenable-actions
+  cancel-in-progress: false
+
+jobs:
+  reenable:
+    name: Sweep account repositories
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Re-enable Actions
+        env:
+          # USER_PAT is the account-wide PAT already used by fork-sync.yml; gh reads GH_TOKEN
+          GH_TOKEN: ${{ secrets.USER_PAT }}
+          REENABLE_OWNER: Chloemlla
+          REENABLE_AUDIT_DIR: actions-audit
+        run: |
+          ARGS=()
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS+=(--dry-run); fi
+            if [ "${{ inputs.include_manual }}" = "true" ]; then ARGS+=(--include-manual); fi
+          fi
+          node scripts/reenable-actions.mjs "${ARGS[@]}"
+
+      - name: Upload audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reenable-actions-audit
+          path: actions-audit/*.json
+          if-no-files-found: warn
+          retention-days: 30
